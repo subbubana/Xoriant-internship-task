@@ -1,0 +1,18 @@
+# .gitignore for service directories (inventory-service/ and mcp-server/)
+
+# Python virtual environment
+venv/
+
+# Environment variables
+.env
+
+# Python compiled files
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# IDE specific files (if any are generated directly in service folder)
+.vscode/
+.idea/

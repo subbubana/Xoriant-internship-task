@@ -1,0 +1,121 @@
+openapi: 3.1.0
+info:
+  title: Inventory Service
+  description: A simple web service to manage inventory for tshirts and pants.
+  version: 1.0.0
+paths:
+  /inventory:
+    get:
+      summary: Get Inventory
+      description: Returns the current inventory count for tshirts and pants.
+      operationId: get_inventory_inventory_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+    post:
+      summary: Update Inventory
+      description: 'Modifies the count of an item in the inventory.
+
+
+        - **item**: The name of the item ("tshirts" or "pants").
+
+        - **change**: The quantity to add (positive) or remove (negative).'
+      operationId: update_inventory_inventory_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryUpdateRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+        '400':
+          description: 'Bad Request: Invalid item name or attempt to reduce inventory
+            below zero.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    CustomErrorResponse:
+      properties:
+        detail:
+          type: string
+          title: Detail
+          example: Item 'hats' not found. Only 'tshirts' and 'pants' are supported.
+      type: object
+      required:
+      - detail
+      title: CustomErrorResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    InventoryResponse:
+      properties:
+        tshirts:
+          type: integer
+          title: Tshirts
+        pants:
+          type: integer
+          title: Pants
+      type: object
+      required:
+      - tshirts
+      - pants
+      title: InventoryResponse
+    InventoryUpdateRequest:
+      properties:
+        item:
+          type: string
+          title: Item
+        change:
+          type: integer
+          title: Change
+      type: object
+      required:
+      - item
+      - change
+      title: InventoryUpdateRequest
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
