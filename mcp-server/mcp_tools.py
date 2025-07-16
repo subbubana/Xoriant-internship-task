@@ -1,27 +1,10 @@
-# Import logging to capture tool execution details for debugging.
-# Logs tool calls (e.g., update_inventory_tool, get_inventory_tool) to trace interactions between the MCP Server and Inventory Service.
-import logging
+import logging #To capture tool execution details for debugging.
+from langchain_core.tools import tool #To define functions that the LLM can call.
+from pydantic import BaseModel, Field #To define input schemas for tools.
+from typing import Dict, Any #To define precise return types (e.g., Dict[str, int] for inventory).
+from inventory_client import InventoryClient #To interact with the Inventory Service’s API.
 
-# Import LangChain's tool decorator to define functions that the LLM can call.
-# This enables the MCP Server’s LLM to invoke inventory operations based on natural language queries, supporting all four tasks.
-from langchain_core.tools import tool
-
-# Import Pydantic’s BaseModel and Field for defining input schemas for tools.
-# This ensures structured inputs (e.g., item name, change quantity) for update_inventory_tool, aligning with Inventory Service’s validation.
-from pydantic import BaseModel, Field
-
-# Import typing utilities to define precise return types (e.g., Dict[str, int] for inventory).
-# Using Any for update_inventory_tool’s return accommodates both inventory data and error responses from InventoryClient.
-from typing import Dict, Any
-
-# Import InventoryClient to interact with the Inventory Service’s API.
-# This provides the interface for fetching and updating inventory, supporting Tasks 1 (quantity processing),
-# 3 (multi-item updates), and 4 (inventory summarization).
-
-from inventory_client import InventoryClient
-
-# Set up logging with INFO level to capture tool call details.
-# This aids debugging by logging inputs and outcomes of tool executions, ensuring traceability for MCP Server operations.
+#Set up logging with INFO level to capture tool call details.
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

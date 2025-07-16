@@ -116,6 +116,14 @@
         ],
         "title": "HTTPValidationError"
       },
+      "InventoryItem": {
+        "type": "string",
+        "enum": [
+          "tshirts",
+          "pants"
+        ],
+        "title": "InventoryItem"
+      },
       "InventoryResponse": {
         "properties": {
           "tshirts": {
@@ -137,13 +145,8 @@
       "InventoryUpdateRequest": {
         "properties": {
           "item": {
-            "type": "string",
-            "enum": [
-              "tshirts",
-              "pants"
-            ],
-            "title": "Item",
-            "description": "The name of the item in the inventory. Must be exact; MCP agent handles case normalization."
+            "$ref": "#/components/schemas/InventoryItem",
+            "description": "The name of the item ('tshirts' or 'pants')."
           },
           "change": {
             "type": "integer",
