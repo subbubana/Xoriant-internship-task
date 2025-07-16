@@ -188,7 +188,7 @@ This service converts natural language queries into API calls to the Inventory S
 Accepts a natural language string and returns a GenAI-generated response.
 
 **Request Body Sample Test Cases:** `{"query": "I sold 3 t shirts"}`
-
+```
 - Test query endpoint:
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add one tshirt"}'
