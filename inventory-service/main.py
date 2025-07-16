@@ -1,19 +1,7 @@
-# Import FastAPI for creating the web service and HTTPException/status for error handling.
-# These enable the Inventory Service to expose RESTful endpoints (/inventory) and return 
-# standardized HTTP responses, which the MCP Server uses to fetch inventory data and update item counts.
-from fastapi import FastAPI, HTTPException, status
-
-# Import Pydantic's BaseModel and Field for defining and validating request/response models.
-# Pydantic ensures strict type checking and validation (e.g., item names, integer quantities),
-# which supports the MCP Server's need for reliable data and error messages for invalid inputs.
-from pydantic import BaseModel, Field
-
-
-# Import typing utilities to define precise data types (e.g., Dict for inventory, Literal for item names).
-# This ensures type safety and clear schema definition for the OpenAPI spec, which the MCP Server uses
-# to dynamically fetch valid item names (e.g., ["tshirts", "pants"]).
-from typing import Dict, Literal, List, Any
-
+from fastapi import FastAPI, HTTPException, status #To create the web service and HTTPException/status for error handling.
+from pydantic import BaseModel, Field #To define and validate request/response models.
+from typing import Dict, List, Any # To define precise data types (e.g., Dict for inventory, Any for error details).
+from enum import Enum #To define the enum for the item names.
 
 # Initialize FastAPI app with metadata to generate a clear OpenAPI schema.
 # The schema (accessible at /openapi.json) defines valid items and request/response structures,
@@ -23,6 +11,11 @@ app = FastAPI(
     description="A simple web service to manage inventory for tshirts and pants.",
     version="1.0.0",
 )
+
+# Define the enum for the item names. This can be extended to include more items in the future.
+class InventoryItem(str, Enum): # Inherit from str to ensure string values in JSON
+    TSHIRTS = "tshirts"
+    PANTS = "pants"
 
 # In-memory dictionary to store inventory counts, initialized with default values.
 # Using a dictionary simplifies state management for this prototype, as persistent storage isn't required.
@@ -37,17 +30,17 @@ class InventoryResponse(BaseModel):
     tshirts: int
     pants: int
 
-# Pydantic model for GET /inventory response, defining the structure of inventory data.
-# Explicitly lists tshirts and pants to match initial requirements, ensuring the MCP Server
-# receives a consistent JSON response (e.g., {"tshirts": 20, "pants": 15}) for inventory summaries.
+# Pydantic model for POST /inventory request with strict validation
 class InventoryUpdateRequest(BaseModel):
-    item: Literal["tshirts", "pants"] = Field(description="The name of the item in the inventory. Must be exact; MCP agent handles case normalization.")
+    # Use the Enum directly for type validation
+    item: InventoryItem = Field(description="The name of the item ('tshirts' or 'pants').")
     change: int = Field(
         description="The quantity to add (positive) or remove (negative).",
-        # ge=-10000, le=10000 # Commented out to avoid hardcoding limits, allowing flexibility for future changes.
-        # The MCP Server handles large quantity errors via LLM interpretation of 400/422 responses.
+        # ge=-10000, le=10000  # Commented out to avoid hardcoding limits, allowing flexibility for future changes.
     )
 
+    # No case normalization validator needed here, as Enum members are exact.
+    # The agent (MCP) will handle normalization before sending to this service.
 
 # Pydantic model for 400 error responses, standardizing error messages.
 # Used when inventory updates would result in negative counts, providing clear feedback

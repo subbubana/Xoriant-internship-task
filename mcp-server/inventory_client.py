@@ -1,19 +1,7 @@
-# Import requests for HTTP communication with the Inventory Service.
-# This enables the MCP Server to call GET /inventory and POST /inventory endpoints,
-# supporting Task 4 (inventory summarization) and Tasks 1/3 (quantity and multi-item updates).
-import requests
-
-# Import os to access environment variables (e.g., INVENTORY_SERVICE_URL).
-# This allows flexible configuration of the Inventory Service URL, defaulting to localhost for development.
-import os
-
-# Import json for parsing Inventory Service responses and handling non-JSON errors.
-# This ensures robust error handling, providing structured error details for the LLM to interpret.
-import json
-
-# Import typing utilities to define precise return types (e.g., Dict[str, int] for inventory).
-# Using Any for error details accommodates varied response formats (string, dict, list) from the Inventory Service.
-from typing import Dict, Any
+import requests #To communicate with the Inventory Service.
+import os #To access environment variables (e.g., INVENTORY_SERVICE_URL).
+import json #To parse Inventory Service responses and handle non-JSON errors.
+from typing import Dict, Any #To define precise return types (e.g., Dict[str, int] for inventory).
 
 class InventoryClient:
     """

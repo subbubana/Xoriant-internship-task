@@ -1,62 +1,20 @@
-# Import os to access environment variables (e.g., GOOGLE_API_KEY, INVENTORY_SERVICE_URL).
-# This enables flexible configuration for the LLM and Inventory Service connection.
-import os
-
-# Import json for serializing tool outputs and parsing OpenAPI schema.
-# Used to fetch valid_items from openapi.json and handle tool responses for the LLM.
-import json
-
-
-# Import requests to fetch the Inventory Service’s openapi.json.
-# This supports dynamic item validation (Task 2) by retrieving valid item names
-import requests
-
-# Import typing utilities for precise type definitions (e.g., AgentState, tool return types).
-# Annotated supports LangGraph’s message aggregation, and Any accommodates varied tool responses.
-from typing import Dict, Any, List, TypedDict, Annotated
-
-# Import FastAPI components to create the MCP Server API.
-# FastAPI handles the /process_query endpoint, enabling natural language query processing.
-from fastapi import FastAPI, HTTPException, status
-
-# Import Pydantic’s BaseModel for defining the QueryRequest schema.
-# Ensures structured input for the /process_query endpoint, supporting robust query handling.
-from pydantic import BaseModel
-
-# Import ChatGoogleGenerativeAI to initialize the Gemini-2.0-flash LLM.
-# The LLM processes natural language queries and invokes tools for inventory operations.
-from langchain_google_genai import ChatGoogleGenerativeAI
-
-# Import LangChain message types for structuring LLM conversations.
-# These enable the LLM to handle user queries, system prompts, and tool responses.
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
-
-# Import LangGraph components to define the LLM agent’s workflow.
-# StateGraph manages the stateful interaction between LLM calls and tool executions.
-from langgraph.graph import StateGraph, END
-
-# Import add_messages to aggregate conversation messages in AgentState.
-# This ensures the LLM maintains context across multiple interactions.
-from langgraph.graph.message import add_messages
-
-# Import ChatPromptTemplate to structure the LLM’s prompt with system and user messages.
-# This defines the rules for query processing and tool usage.
-from langchain_core.prompts import ChatPromptTemplate
-
-# Import BaseTool to type the tools list for the LLMAgent.
-# Ensures tools (get_inventory_tool, update_inventory_tool) are properly integrated.
-from langchain_core.tools import BaseTool
-
-# Import tools from mcp_tools.py to interact with the Inventory Service.
-# These tools support all four tasks: quantity processing (Task 1), item validation (Task 2, indirectly),
-# multi-item updates (Task 3), and inventory summarization (Task 4).
-from mcp_tools import get_inventory_tool, update_inventory_tool
-
-# Import load_dotenv to load environment variables from a .env file.
-# This simplifies configuration for GOOGLE_API_KEY and INVENTORY_SERVICE_URL.
-from dotenv import load_dotenv
+import os #To access environment variables (e.g., GOOGLE_API_KEY, INVENTORY_SERVICE_URL).
+import json #To fetch valid_items from openapi.json and handle tool responses for the LLM.
+import requests #To fetch the Inventory Service’s openapi.json.
+from typing import Dict, Any, List, TypedDict, Annotated #To define precise type definitions (e.g., AgentState, tool return types).
+from fastapi import FastAPI, HTTPException, status #To create the MCP Server API.
+from pydantic import BaseModel #To define the QueryRequest schema.
+from langchain_google_genai import ChatGoogleGenerativeAI #To initialize the Gemini-2.0-flash LLM.
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage #To define the LLM agent’s workflow.
+from langgraph.graph import StateGraph, END #To define the LLM agent’s workflow.
+from langgraph.graph.message import add_messages #To aggregate conversation messages in AgentState.
+from langchain_core.prompts import ChatPromptTemplate #To structure the LLM’s prompt with system and user messages.
+from langchain_core.tools import BaseTool #To type the tools list for the LLMAgent.
+from mcp_tools import get_inventory_tool, update_inventory_tool #To interact with the Inventory Service.
+from dotenv import load_dotenv #To load environment variables from a .env file.
 
 load_dotenv() # Load environment variables from .env file at startup.
+#This simplifies configuration for GOOGLE_API_KEY and INVENTORY_SERVICE_URL.
 
 # --- Pydantic Model for Agent State ---
 class AgentState(TypedDict):
@@ -174,13 +132,13 @@ class LLMAgent:
             response = requests.get(f"{url}/openapi.json")
             response.raise_for_status()
             openapi_spec = response.json()
-            inventory_update_schema = openapi_spec.get("components", {}).get("schemas", {}).get("InventoryUpdateRequest", {})
-            item_enum = inventory_update_schema.get("properties", {}).get("item", {}).get("enum", [])
+            inventory_item_schema = openapi_spec.get("components", {}).get("schemas", {}).get("InventoryItem", {})
+            item_enum = inventory_item_schema.get("enum", [])
             if not item_enum:
                 print(f"Warning: Could not find 'enum' for 'item' in InventoryUpdateRequest schema at {url}/openapi.json. \
                       Defaulting to ['tshirts', 'pants'].")
              # Extract valid item names from openapi.json, enabling dynamic item support (e.g., adding "jackets").
-            return item_enum or ["tshirts", "pants"]
+            return item_enum or ["tshirts", "pants"] # Default to ["tshirts", "pants"] if no valid items are found.
         except Exception as e:
             print(f"Error fetching OpenAPI spec from {url}: {e}. Defaulting to ['tshirts', 'pants'].")
              # Fallback to default items to ensure system functionality if the Inventory Service is unavailable
