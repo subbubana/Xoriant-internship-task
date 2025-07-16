@@ -113,7 +113,7 @@ pip install -r requirements.txt
 
 The MCP Server requires a Google API Key to access the Gemini model.
 
-1. Obtain a Google API Key with access to the Gemini API (e.g., from Google AI Studio or Google Cloud Vertex AI).
+1. Obtain a Google API Key with access to the Gemini API (https://ai.google.dev/gemini-api/docs).
 2. Create a file named `.env` in the `mcp-server/` directory (at the same level as `main.py`).
 3. Add your API key to this file:
 
@@ -125,10 +125,21 @@ GOOGLE_API_KEY="YOUR_GEMINI_API_KEY_HERE"
 
 #### Run the MCP Server
 
-```bash
+**Set Environment Variables**:
+   ```bash
+   export INVENTORY_SERVICE_URL="http://127.0.0.1:8000"
+   export GOOGLE_API_KEY="your-google-api-key"
+   ```
+   Or create a `.env` file:
+   ```env
+   INVENTORY_SERVICE_URL=http://127.0.0.1:8000
+   GOOGLE_API_KEY=your-google-api-key
+   ```
+**Note**: The default `INVENTORY_SERVICE_URL` (`http://127.0.0.1:8000`) is for local development. For non-local setups (e.g., Docker, cloud), set `INVENTORY_SERVICE_URL` to the Inventory Service’s host and port (e.g., `http://inventory-service:8000`). Verify the port is not in use by another service. Ensure `GOOGLE_API_KEY` is set for the LLM.
+
 # Ensure your virtual environment is active and .env file is set up
 uvicorn main:app --reload --port 8001
-The MCP Server will now be running at http://127.0.0.1:8001. You can access its interactive API documentation (Swagger UI) at http://127.0.0.1:8001/docs.
+The MCP Server will now be running at http://127.0.0.1:8001 OR INVENTORY_SERVICE_URL. You can access its interactive API documentation (Swagger UI) at http://YOUR_URL/docs.
 
 Ensure both services (Inventory on 8000 and MCP on 8001) are running simultaneously for the MCP Server to function correctly.
 
@@ -140,70 +151,31 @@ You can interact with both services using curl (BASH/Linux/macOS syntax shown be
 
 This service manages inventory for 'tshirts' (initial: 20) and 'pants' (initial: 15).
 
-#### 1. GET /inventory
-
-Returns the current inventory count.
-
-```bash
-# Example Request:
-curl -X GET "http://127.0.0.1:8000/inventory" -H "accept: application/json"
-
-# Example Expected Response:
-# {"tshirts":20,"pants":15}
-```
-
-#### 2. POST /inventory
-
-Modifies the count of an item.
-
-**Request Body Example:** `{"item": "tshirts", "change": -5}`
-
-```bash
-# Example Request (Sell 5 tshirts):
-curl -X POST "http://127.0.0.1:8000/inventory" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"item": "tshirts", "change": -5}'
-
-#Response
-{"tshirts":13,"pants":25}
-
-# Example Request (Add 10 pants):
-curl -X POST "http://127.0.0.1:8000/inventory" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"item": "pants", "change": 10}'
-
-#Response
-{"tshirts":13,"pants":35}
-```
-
-#### Error Handling Examples (Inventory Service Direct Interaction)
-
-##### POST /inventory - Invalid Item Name (400 Bad Request)
-
-```bash
-# Example Request (Invalid item 'hats'):
-curl -X POST "http://127.0.0.1:8000/inventory" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"item": "hats", "change": 1}'
-
-# Response:
-{"detail":"Item 'hats' not found. Only 'tshirts' and 'pants' are supported."}
-```
-
-##### POST /inventory - Reduce Below Zero (400 Bad Request)
-
-```bash
-# Example Request (Sell 1000 tshirts):
-curl -X POST "http://127.0.0.1:8000/inventory" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"item": "tshirts", "change": -1000}'
-
-#Response (counts may vary based on current stock):
-{"detail":"Cannot reduce tshirts count below zero. Current: 13, Attempted change: -1000"}
+- **Get Inventory**:
+     ```bash
+     curl -X GET "http://127.0.0.1:8000/inventory"
+     ```
+     Response: `{"tshirts": 20, "pants": 15}`
+   - **Update Inventory (Success)**:
+     ```bash
+     curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" -d '{"item": "tshirts", "change": 5}'
+     ```
+     Response: `{"tshirts": 25, "pants": 15}`
+   - **Negative Inventory (400)**:
+     ```bash
+     curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" -d '{"item": "tshirts", "change": -21}'
+     ```
+     Response: `{"detail": "Cannot reduce tshirts count below zero. Current: 20, Attempted change: -21"}`
+   - **Invalid Item (422)**:
+     ```bash
+     curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" -d '{"item": "pantis", "change": 5}'
+     ```
+     Response: `{"detail": [{"loc": ["body", "item"], "msg": "value is not a valid enumeration member; permitted: 'tshirts', 'pants'", "type": "value_error.enum"}]}`
+   - **Large Quantity (if limits enabled)**:
+     ```bash
+     curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" -d '{"item": "tshirts", "change": 10001}'
+     ```
+     Response (if limits enabled): `{"detail": [{"loc": ["body", "change"], "msg": "value must be less than or equal to 10000", "type": "value_error.number.too_large"}]}`
 ```
 
 
@@ -217,70 +189,64 @@ Accepts a natural language string and returns a GenAI-generated response.
 
 **Request Body Sample Test Cases:** `{"query": "I sold 3 t shirts"}`
 
-```bash
-# Example Request (Get current inventory):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "How many pants and shirts do I have?"}'
-
-#Response:
-{"response":"OK. Currently, there are 35 pants and 13 tshirts in stock."} # (Counts will vary)
-
-# Example Request (Sell 3 tshirts):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "I sold 3 tshirts"}'
-
-#Response:
-{"response":"OK. I've updated the inventory. There are now 10 tshirts in stock."} # (Counts will vary)
-
-# Example Request (Add 5 pants):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Add five pants"}'
-
-#Response:
-{"response":"OK. I've added 5 pants to the inventory. There are now 40 pants and 10 tshirts in stock."} # (Counts will vary)
-
-# Example Request (Sell half of the inventory - Multi-step logic): Agent will firt call get_inventory, calculate the half of the stock, and then use update_inventory to make updates: one item at a time. The behavior is handled by the prompt, aided by the tools and the graph constructed for the agent.
-
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Sell half of the inventory"}'
-
-# Response (will vary based on current stock):
-{"response":"OK. I have sold half of the tshirts and half of the pants. The tshirts quantity is now 5 and the pants quantity is now 20."}
-
-# Example Request (Invalid item name - LLM relays backend error):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Add 2 hats"}'
-
-# Example Expected Response:
-# {"response":"I'm sorry, I can only manage inventory for 'tshirts' and 'pants'. 'Hats' is not a supported item."}
-
-# Example Request (Reduce below zero - LLM relays backend error):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Sell 1000 tshirts"}'
-
-# Example Expected Response:
-# {"response":"I am sorry, but selling 100 tshirts is not possible since there are only 5 tshirts in stock."}
-
-# Example Request (Decimal input - LLM clarification):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Add 2.5 tshirts"}'
-
-#Response:
-{"response":"I cannot add 2.5 tshirts because I can only update inventory with whole numbers. Could you please specify the exact number of tshirts to add?"}
+- Test query endpoint:
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add one tshirt"}'
+     ```
+     Response: `{"response":"Added 1 tshirt. Inventory: 21 tshirts, 15 pants."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell 5 T-shirt"}'
+     ```
+     Response: `{"response":"Sold 5 tshirts. Inventory: 15 tshirts, 15 pants."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"clear all pants"}'
+     ```
+     Response (assuming 15 pants): `{"response":"Cleared all pants. Inventory: 20 tshirts, 0 pants."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell 2.5 tshirts"}'
+     ```
+     Response: `{"response":"Only whole numbers are supported. Please specify an exact number."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell half of pants"}'
+     ```
+     Response: `{"response":"Please provide an exact number for updates."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 20 shirts"}'
+     ```
+     Response: `{"response":"Shirts is not supported. Valid items: ['tshirts', 'pants']."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 5 pantis"}'
+     ```
+     Response: `{"response":"Pantis is not supported. Valid items: ['tshirts', 'pants']."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell 3 tshit"}'
+     ```
+     Response: `{"response":"Tshits is not supported. Valid items: ['tshirts', 'pants']."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 20 pantis and 30 shirts"}'
+     ```
+     Response: `{"response":"Pantis and shirts are not supported. Valid items: ['tshirts', 'pants']."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 5 tshirts and 10 pantis"}'
+     ```
+     Response: `{"response":"Added 5 tshirts. Pantis is not supported. Inventory: 25 tshirts, 15 pants. Valid items: ['tshirts', 'pants']."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell 3 tshirts and 2 hats"}'
+     ```
+     Response: `{"response":"Sold 3 tshirts. Hats is not supported. Inventory: 17 tshirts, 15 pants. Valid items: ['tshirts', 'pants']."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 5"}'
+     ```
+     Response: `{"response":"Please specify which item(s) to update."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"buy 20000000 tshirts"}'
+     ```
+     Response: `{"response":"The update failed because the requested change (20000000) exceeds the maximum allowed value of 10000. Please specify a smaller amount."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 5 jackets"}'
+     ```
+     Response (if `openapi.json` includes `"jackets"`): `{"response":"Added 5 jackets. Inventory: 5 jackets, 20 tshirts, 15 pants."}`
+     Response (if `"jackets"` not in `openapi.json`): `{"response":"Jackets is not supported. Valid items: ['tshirts', 'pants']."}`
 ```
 ## 🧠 Design and Approach
 
