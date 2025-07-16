@@ -1,0 +1,192 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Inventory Service",
+    "description": "A simple web service to manage inventory for tshirts and pants.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/inventory": {
+      "get": {
+        "summary": "Get Inventory",
+        "description": "Returns the current inventory count for all the items in inventory.",
+        "operationId": "get_inventory_inventory_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Update Inventory",
+        "description": "Updates the inventory count for the specified item based on the change value.",
+        "operationId": "update_inventory_inventory_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request: Attempt to reduce inventory below zero.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error: Invalid request payload format or value.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPErrorResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "example": "Cannot reduce tshirts count below zero."
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "HTTPErrorResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail",
+            "description": "List of validation errors",
+            "example": [
+              {
+                "loc": [
+                  "body",
+                  "item"
+                ],
+                "msg": "field required",
+                "type": "value_error.missing"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "HTTPValidationError"
+      },
+      "InventoryResponse": {
+        "properties": {
+          "tshirts": {
+            "type": "integer",
+            "title": "Tshirts"
+          },
+          "pants": {
+            "type": "integer",
+            "title": "Pants"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tshirts",
+          "pants"
+        ],
+        "title": "InventoryResponse"
+      },
+      "InventoryUpdateRequest": {
+        "properties": {
+          "item": {
+            "type": "string",
+            "enum": [
+              "tshirts",
+              "pants"
+            ],
+            "title": "Item",
+            "description": "The name of the item in the inventory. Must be exact; MCP agent handles case normalization."
+          },
+          "change": {
+            "type": "integer",
+            "title": "Change",
+            "description": "The quantity to add (positive) or remove (negative)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "change"
+        ],
+        "title": "InventoryUpdateRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+
+            },
+            "type": "array",
+            "title": "Loc",
+            "description": "Location of the error (e.g., ['body', 'field_name'])"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg",
+            "description": "Error message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Error type (e.g., 'value_error.missing')"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,3 +1,4 @@
+#Converted from json to yaml using invnentory-service/json_yaml.py
 openapi: 3.1.0
 info:
   title: Inventory Service
@@ -7,7 +8,7 @@ paths:
   /inventory:
     get:
       summary: Get Inventory
-      description: Returns the current inventory count for tshirts and pants.
+      description: Returns the current inventory count for all the items in inventory.
       operationId: get_inventory_inventory_get
       responses:
         '200':
@@ -18,12 +19,8 @@ paths:
                 $ref: '#/components/schemas/InventoryResponse'
     post:
       summary: Update Inventory
-      description: 'Modifies the count of an item in the inventory.
-
-
-        - **item**: The name of the item ("tshirts" or "pants").
-
-        - **change**: The quantity to add (positive) or remove (negative).'
+      description: Updates the inventory count for the specified item based on the
+        change value.
       operationId: update_inventory_inventory_post
       requestBody:
         content:
@@ -39,30 +36,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/InventoryResponse'
         '400':
-          description: 'Bad Request: Invalid item name or attempt to reduce inventory
-            below zero.'
+          description: 'Bad Request: Attempt to reduce inventory below zero.'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CustomErrorResponse'
+                $ref: '#/components/schemas/HTTPErrorResponse'
         '422':
-          description: Validation Error
+          description: 'Validation Error: Invalid request payload format or value.'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    CustomErrorResponse:
+    HTTPErrorResponse:
       properties:
         detail:
           type: string
           title: Detail
-          example: Item 'hats' not found. Only 'tshirts' and 'pants' are supported.
+          example: Cannot reduce tshirts count below zero.
       type: object
       required:
       - detail
-      title: CustomErrorResponse
+      title: HTTPErrorResponse
     HTTPValidationError:
       properties:
         detail:
@@ -70,7 +66,16 @@ components:
             $ref: '#/components/schemas/ValidationError'
           type: array
           title: Detail
+          description: List of validation errors
+          example:
+          - loc:
+            - body
+            - item
+            msg: field required
+            type: value_error.missing
       type: object
+      required:
+      - detail
       title: HTTPValidationError
     InventoryResponse:
       properties:
@@ -89,10 +94,16 @@ components:
       properties:
         item:
           type: string
+          enum:
+          - tshirts
+          - pants
           title: Item
+          description: The name of the item in the inventory. Must be exact; MCP agent
+            handles case normalization.
         change:
           type: integer
           title: Change
+          description: The quantity to add (positive) or remove (negative).
       type: object
       required:
       - item
@@ -101,18 +112,18 @@ components:
     ValidationError:
       properties:
         loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
+          items: {}
           type: array
-          title: Location
+          title: Loc
+          description: Location of the error (e.g., ['body', 'field_name'])
         msg:
           type: string
-          title: Message
+          title: Msg
+          description: Error message
         type:
           type: string
-          title: Error Type
+          title: Type
+          description: Error type (e.g., 'value_error.missing')
       type: object
       required:
       - loc
