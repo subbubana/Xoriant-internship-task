@@ -2,10 +2,10 @@
 
 ## 📑 Table of Contents
 
-- [🚀 Setup and Local Run](#-setup-and-local-run)
+- [🚀 Setup and Local Run](#-setup-and-local-run)    
 - [🧪 API Endpoints and Examples](#-api-endpoints-and-examples)
 - [🧠 Design and Approach](#-design-and-approach)
-- 
+
 This repository presents a solution to the internship task, comprising two interconnected components:
 
 1. **Inventory Web Service** for managing stock of 'tshirts' and 'pants'
