@@ -123,7 +123,7 @@ GOOGLE_API_KEY="YOUR_GEMINI_API_KEY_HERE"
 
 **Important:** The `.env` file is excluded from Git via `.gitignore` for security.
 
-#### Run the MCP Server
+
 
 **Set Environment Variables**:
    ```bash
@@ -138,8 +138,12 @@ GOOGLE_API_KEY="YOUR_GEMINI_API_KEY_HERE"
 **Note**: The default `INVENTORY_SERVICE_URL` (`http://127.0.0.1:8000`) is for local development. For non-local setups (e.g., Docker, cloud), set `INVENTORY_SERVICE_URL` to the Inventory Service’s host and port (e.g., `http://inventory-service:8000`). Verify the port is not in use by another service. Ensure `GOOGLE_API_KEY` is set for the LLM.
 
 #### Ensure your virtual environment is active and .env file is set up
+#### Run the MCP Server
+```bash
 uvicorn main:app --reload --port 8001
-The MCP Server will now be running at http://127.0.0.1:8001 OR INVENTORY_SERVICE_URL. You can access its interactive API documentation (Swagger UI) at http://YOUR_URL/docs.
+
+#The MCP Server will now be running at http://127.0.0.1:8001 OR INVENTORY_SERVICE_URL. You can access its interactive API documentation (Swagger UI) at http://YOUR_URL/docs.
+```
 
 Ensure both services (Inventory on 8000 and MCP on 8001) are running simultaneously for the MCP Server to function correctly.
 
@@ -312,9 +316,9 @@ The MCP Server acts as the intelligent bridge between natural language and the I
 - **LLM-Driven Processing**: The rule-based system prompt (`MCP_SYSTEM_PROMPT` in `main.py`) defines rules for quantity handling (Task 1), item normalization (Task 2), multi-item processing (Task 3), and inventory summarization (Task 4). The LLM interprets errors, reducing coded logic.
 - **InventoryClient**: Uses `requests` in `inventory_client.py` for lightweight HTTP communication with the Inventory Service. The default `base_url` (`http://127.0.0.1:8000`) is for local development, configurable via `INVENTORY_SERVICE_URL` for non-local setups (e.g., Docker, cloud). Structured error responses support LLM interpretation.
 - **MCP Tools**: Two LangChain tools (`get_inventory_tool`, `update_inventory_tool`) in `mcp_tools.py` map to Inventory Service endpoints, minimizing complexity. `update_inventory_tool` uses a Pydantic schema to ensure valid inputs, mirroring the Inventory Service’s `InventoryUpdateRequest`. Logging aids debugging.
-        * **Controlled Tool Execution (Private Node Methods):** The LangGraph nodes responsible for direct LLM interaction (`_call_llm_node`) and tool execution (`_call_tool_node`) are implemented as *private methods* within the `LLMAgent` class (indicated by the leading underscore `_`). This design choice ensures that:
-        * **Tools are never called directly:** External code (like the FastAPI endpoint) cannot bypass the agent's reasoning process and directly invoke `_call_tool_node`.
-        * **Controlled Flow:** All tool calls are strictly orchestrated by the LangGraph workflow, meaning an API endpoint is only triggered *after* the LLM has reasoned, decided on a tool, and the graph has routed the execution. This prevents accidental or unauthorized direct API calls from the MCP server's public interface, enhancing security and ensuring the LLM's intelligence is always in the loop.
+- **Controlled Tool Execution (Private Node Methods):** The LangGraph nodes responsible for direct LLM interaction (`_call_llm_node`) and tool execution (`_call_tool_node`) are implemented as *private methods* within the `LLMAgent` class (indicated by the leading underscore `_`). This design choice ensures that:
+  * **Tools are never called directly:** External code (like the FastAPI endpoint) cannot bypass the agent's reasoning process and directly invoke `_call_tool_node`.
+  * **Controlled Flow:** All tool calls are strictly orchestrated by the LangGraph workflow, meaning an API endpoint is only triggered *after* the LLM has reasoned, decided on a tool, and the graph has routed the execution. This prevents accidental or unauthorized direct API calls from the MCP server's public interface, enhancing security and ensuring the LLM's intelligence is always in the loop.
 - **LLMAgent**: Integrates the LLM, tools, and system prompt in `main.py` to process queries. Fetches `valid_items` from `openapi.json` at initialization for dynamic item support (Task 2). The LangGraph workflow handles tool calls and responses, ensuring stateful query processing (e.g., for “clear all pants”).
 - **FastAPI**: Provides a RESTful `/process_query` endpoint in `main.py` for natural language queries, with Pydantic for input validation. Handles errors gracefully, supporting robust user interactions.
 - **OpenAPI Integration**: Fetches `valid_items` from `openapi.json` at startup, ensuring new items (e.g., `"jackets"`) are supported without code changes. The rule-based prompt dynamically incorporates `valid_items`, enabling effective inventory updates.
