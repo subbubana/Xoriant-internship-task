@@ -328,6 +328,10 @@ The MCP Server acts as the intelligent bridge between natural language and the I
 ### Limitations
 - **In-Memory Store**: Resets on restart and assumes non-negative initial counts, as noted in the Inventory Service section.
 - **MCP Server**: Relies on the LLM for query parsing and response formatting, which may introduce variability for edge cases. The `openapi.json` is fetched only at MCP Server startup in `LLMAgent._get_valid_inventory_items`. If the Inventory Service’s schema changes (e.g., new items added), both servers must be restarted to update `valid_items`. This is because the `valid_items` list is cached at initialization to avoid repeated HTTP requests during runtime, ensuring performance but requiring manual restarts for schema updates.
+-   * **Future Resolution Strategies:**
+        * **Scheduled Polling:** Implement a background task within the MCP server to periodically (e.g., every hour) re-fetch the `openapi.json` and refresh `valid_items`. This offers eventual consistency without restarts.
+        * **Webhooks/Event-Driven Updates:** The Inventory Service could be enhanced to send a webhook notification to a dedicated endpoint on the MCP server whenever its schema changes. This would trigger an immediate refresh of `valid_items` in the MCP server.
+    * **Why Not Implemented Now:** These strategies introduce additional complexity (background tasks, new API endpoints, inter-service communication) that was deemed beyond the core scope and simplicity requirements of this internship task. The current approach effectively demonstrates dynamic prompt injection while keeping the overall solution focused.
 - **InventoryClient**: Minimal validation in `inventory_client.py` shifts responsibility to the Inventory Service and MCP Server, ensuring simplicity but relying on their correctness.
 - **MCP Tools**: Limited to two tools in `mcp_tools.py` to cover all operations, relying on the LLM for complex query parsing (e.g., multi-item updates).
 - **LLMAgent**: Depends on `GOOGLE_API_KEY` for LLM initialization. Zero temperature ensures deterministic responses but may limit creativity for edge cases.
