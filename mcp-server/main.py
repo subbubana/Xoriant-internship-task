@@ -1,17 +1,3 @@
-import os 
-import json
-import requests
-from typing import Dict, Any, List, TypedDict, Annotated
-from fastapi import FastAPI, HTTPException, status 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
-from langgraph.graph import StateGraph, END
-from langgraph.graph.message import add_messages
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.tools import BaseTool
-from mcp_tools import get_inventory_tool, update_inventory_tool
-from dotenv import load_dotenv
-
 # Import os to access environment variables (e.g., GOOGLE_API_KEY, INVENTORY_SERVICE_URL).
 # This enables flexible configuration for the LLM and Inventory Service connection.
 import os
