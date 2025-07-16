@@ -19,7 +19,7 @@ The project is designed to demonstrate proficiency in backend service developmen
 
 - **Backend Framework:** FastAPI (Python)
 - **AI Frameworks:** LangChain, LangGraph
-- **Large Language Model (LLM):** Google Gemini-Flash (`gemini-1.5-flash-latest`)
+- **Large Language Model (LLM):** Google Gemini-Flash (`gemini-2.0-flash`)
 - **Dependency Management:** Python Virtual Environments, `pip`
 - **API Interaction:** `requests` library
 - **Data Validation:** Pydantic
@@ -113,7 +113,7 @@ pip install -r requirements.txt
 
 The MCP Server requires a Google API Key to access the Gemini model.
 
-1. Obtain a Google API Key with access to the Gemini API (e.g., from Google AI Studio or Google Cloud Vertex AI).
+1. Obtain a Google API Key with access to the Gemini API (https://ai.google.dev/gemini-api/docs).
 2. Create a file named `.env` in the `mcp-server/` directory (at the same level as `main.py`).
 3. Add your API key to this file:
 
@@ -125,10 +125,21 @@ GOOGLE_API_KEY="YOUR_GEMINI_API_KEY_HERE"
 
 #### Run the MCP Server
 
-```bash
-# Ensure your virtual environment is active and .env file is set up
+**Set Environment Variables**:
+   ```bash
+   export INVENTORY_SERVICE_URL="http://127.0.0.1:8000"
+   export GOOGLE_API_KEY="your-google-api-key"
+   ```
+   Or create a `.env` file:
+   ```env
+   INVENTORY_SERVICE_URL=http://127.0.0.1:8000
+   GOOGLE_API_KEY=your-google-api-key
+   ```
+**Note**: The default `INVENTORY_SERVICE_URL` (`http://127.0.0.1:8000`) is for local development. For non-local setups (e.g., Docker, cloud), set `INVENTORY_SERVICE_URL` to the Inventory Service’s host and port (e.g., `http://inventory-service:8000`). Verify the port is not in use by another service. Ensure `GOOGLE_API_KEY` is set for the LLM.
+
+#### Ensure your virtual environment is active and .env file is set up
 uvicorn main:app --reload --port 8001
-The MCP Server will now be running at http://127.0.0.1:8001. You can access its interactive API documentation (Swagger UI) at http://127.0.0.1:8001/docs.
+The MCP Server will now be running at http://127.0.0.1:8001 OR INVENTORY_SERVICE_URL. You can access its interactive API documentation (Swagger UI) at http://YOUR_URL/docs.
 
 Ensure both services (Inventory on 8000 and MCP on 8001) are running simultaneously for the MCP Server to function correctly.
 
@@ -140,76 +151,45 @@ You can interact with both services using curl (BASH/Linux/macOS syntax shown be
 
 This service manages inventory for 'tshirts' (initial: 20) and 'pants' (initial: 15).
 
-#### 1. GET /inventory
-
-Returns the current inventory count.
-
-```bash
-# Example Request:
-curl -X GET "http://127.0.0.1:8000/inventory" -H "accept: application/json"
-
-# Example Expected Response:
-# {"tshirts":20,"pants":15}
-```
-
-#### 2. POST /inventory
-
-Modifies the count of an item.
-
-**Request Body Example:** `{"item": "tshirts", "change": -5}`
-
-```bash
-# Example Request (Sell 5 tshirts):
-curl -X POST "http://127.0.0.1:8000/inventory" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"item": "tshirts", "change": -5}'
-
-#Response
-{"tshirts":13,"pants":25}
-
-# Example Request (Add 10 pants):
-curl -X POST "http://127.0.0.1:8000/inventory" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"item": "pants", "change": 10}'
-
-#Response
-{"tshirts":13,"pants":35}
-```
-
-#### Error Handling Examples (Inventory Service Direct Interaction)
-
-##### POST /inventory - Invalid Item Name (400 Bad Request)
-
-```bash
-# Example Request (Invalid item 'hats'):
-curl -X POST "http://127.0.0.1:8000/inventory" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"item": "hats", "change": 1}'
-
-# Response:
-{"detail":"Item 'hats' not found. Only 'tshirts' and 'pants' are supported."}
-```
-
-##### POST /inventory - Reduce Below Zero (400 Bad Request)
-
-```bash
-# Example Request (Sell 1000 tshirts):
-curl -X POST "http://127.0.0.1:8000/inventory" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"item": "tshirts", "change": -1000}'
-
-#Response (counts may vary based on current stock):
-{"detail":"Cannot reduce tshirts count below zero. Current: 13, Attempted change: -1000"}
-```
+- **Get Inventory**:
+     ```bash
+     curl -X GET "http://127.0.0.1:8000/inventory"
+     ```
+     Response: `{"tshirts": 20, "pants": 15}`
+- **Update Inventory (Success)**:
+     ```bash
+     curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" \
+     -d '{"item": "tshirts", "change": 5}'
+     ```
+     Response: `{"tshirts": 25, "pants": 15}`
+- **Negative Inventory (400)**:
+     ```bash
+     curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" \
+     -d '{"item": "tshirts", "change": -21}'
+     ```
+     Response: `{"detail": "Cannot reduce tshirts count below zero. Current: 20, Attempted change: -21"}`
+- **Invalid Item (422)**:
+     ```bash
+     curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" \
+      -d '{"item": "pantis", "change": 5}'
+     ```
+     Response: `{"detail": [{"loc": ["body", "item"], "msg": "value is not a valid enumeration member; permitted: 'tshirts', 'pants'", "type": "value_error.enum"}]}`
+- **Large Quantity (if limits enabled -- currently disabled in inventory-service/main.py)**:
+     ```bash
+     curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" \
+     -d '{"item": "tshirts", "change": 10001}'
+     ```
+     Response (if limits enabled): `{"detail": [{"loc": ["body", "change"], "msg": "value must be less than or equal to 10000", "type": "value_error.number.too_large"}]}`
 
 
-### MCP Server (http://127.0.0.1:8001)
+
+## MCP Server (http://127.0.0.1:8001)
 
 This service converts natural language queries into API calls to the Inventory Service.
+
+
+
+**Request Body Sample Test Cases:** `{"query": "I sold 3 t shirts"}`
 
 #### 1. POST /process_query
 
@@ -217,159 +197,148 @@ Accepts a natural language string and returns a GenAI-generated response.
 
 **Request Body Sample Test Cases:** `{"query": "I sold 3 t shirts"}`
 
-```bash
-# Example Request (Get current inventory):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "How many pants and shirts do I have?"}'
+- Test query endpoint:
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"add one tshirt"}'
+     ```
+     Response: `{"response":"Added 1 tshirt. Inventory: 21 tshirts, 15 pants."}`
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"sell 5 T-shirt"}'
+     ```
+     Response: `{"response":"Sold 5 tshirts. Inventory: 15 tshirts, 15 pants."}`
 
-#Response:
-{"response":"OK. Currently, there are 35 pants and 13 tshirts in stock."} # (Counts will vary)
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"clear all pants"}'
+     ```
+     Response (assuming 15 pants): `{"response":"Cleared all pants. Inventory: 20 tshirts, 0 pants."}`
 
-# Example Request (Sell 3 tshirts):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "I sold 3 tshirts"}'
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"sell 2.5 tshirts"}'
+     ```
+     Response: `{"response":"Only whole numbers are supported. Please specify an exact number."}`
 
-#Response:
-{"response":"OK. I've updated the inventory. There are now 10 tshirts in stock."} # (Counts will vary)
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"sell half of pants"}'
+     ```
+     Response: `{"response":"Please provide an exact number for updates."}`
 
-# Example Request (Add 5 pants):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Add five pants"}'
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"add 20 shirts"}'
+     ```
+     Response: `{"response":"Shirts is not supported. Valid items: ['tshirts', 'pants']."}`
 
-#Response:
-{"response":"OK. I've added 5 pants to the inventory. There are now 40 pants and 10 tshirts in stock."} # (Counts will vary)
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"add 5 pantis"}'
+     ```
+     Response: `{"response":"Pantis is not supported. Valid items: ['tshirts', 'pants']."}`
 
-# Example Request (Sell half of the inventory - Multi-step logic): Agent will firt call get_inventory, calculate the half of the stock, and then use update_inventory to make updates: one item at a time. The behavior is handled by the prompt, aided by the tools and the graph constructed for the agent.
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"sell 3 tshit"}'
+     ```
+     Response: `{"response":"Tshits is not supported. Valid items: ['tshirts', 'pants']."}`
 
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Sell half of the inventory"}'
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"add 20 pantis and 30 shirts"}'
+     ```
+     Response: `{"response":"Pantis and shirts are not supported. Valid items: ['tshirts', 'pants']."}`
 
-# Response (will vary based on current stock):
-{"response":"OK. I have sold half of the tshirts and half of the pants. The tshirts quantity is now 5 and the pants quantity is now 20."}
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"add 5 tshirts and 10 pantis"}'
+     ```
+     Response: `{"response":"Added 5 tshirts. Pantis is not supported. Inventory: 25 tshirts, 15 pants. Valid items: ['tshirts', 'pants']."}`
 
-# Example Request (Invalid item name - LLM relays backend error):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Add 2 hats"}'
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"sell 3 tshirts and 2 hats"}'
+     ```
+     Response: `{"response":"Sold 3 tshirts. Hats is not supported. Inventory: 17 tshirts, 15 pants. Valid items: ['tshirts', 'pants']."}`
 
-# Example Expected Response:
-# {"response":"I'm sorry, I can only manage inventory for 'tshirts' and 'pants'. 'Hats' is not a supported item."}
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"add 5"}'
+     ```
+     Response: `{"response":"Please specify which item(s) to update."}`
 
-# Example Request (Reduce below zero - LLM relays backend error):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Sell 1000 tshirts"}'
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"buy 20000000 tshirts"}'
+     ```
+     Response: `{"response":"The update failed because the requested change (20000000) exceeds the maximum allowed value of 10000. Please specify a smaller amount."}`
 
-# Example Expected Response:
-# {"response":"I am sorry, but selling 100 tshirts is not possible since there are only 5 tshirts in stock."}
+     ```bash
+     curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" \
+     -H "Content-Type: application/json" -d '{"query":"add 5 jackets"}'
+     ```
+     Response (if `openapi.json` includes `"jackets"`): `{"response":"Added 5 jackets. Inventory: 5 jackets, 20 tshirts, 15 pants."}`
+     Response (if `"jackets"` not in `openapi.json`): `{"response":"Jackets is not supported. Valid items: ['tshirts', 'pants']."}`
 
-# Example Request (Decimal input - LLM clarification):
-curl -X POST "http://127.0.0.1:8001/process_query" \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Add 2.5 tshirts"}'
-
-#Response:
-{"response":"I cannot add 2.5 tshirts because I can only update inventory with whole numbers. Could you please specify the exact number of tshirts to add?"}
-```
 ## 🧠 Design and Approach
 
 This solution focuses on building a clear, modular, and robust system that effectively integrates traditional backend services with GenAI capabilities.
 
 ### 1. Inventory Web Service (inventory-service/)
 
-#### Clarity and Simplicity:
+### Design Choices
+- **FastAPI**: Chosen for its simplicity, rapid development, automatic OpenAPI schema generation, and async support. The `/openapi.json` endpoint provides the `enum` of valid items, enabling the MCP Server to dynamically fetch `valid_items` for Task 2 (item normalization), reducing manual configuration and ensuring scalability.
+- **Pydantic**: Enforces strict validation of item names (via `Literal`) and integer quantities, generating structured 400/422 error responses for the MCP Server’s LLM to interpret, supporting Tasks 1 (quantity processing) and 2.
+- **In-Memory Storage**: A dictionary (`inventory_db`) ensures simplicity, as persistent storage isn’t required. It supports fast updates and retrieval for Tasks 3 (multi-item updates) and 4 (inventory summarization). **Limitation**: The in-memory store is expected to initialize with non-negative item counts (e.g., `{"tshirts": 20, "pants": 15}`). Negative counts at initialization are not handled, as the system assumes valid starting quantities. To address this, validation could be added in `inventory_service/main.py` to check for non-negative counts during initialization, raising an error if violated.
+- **Inventory Expansion**: To add new items (e.g., “jackets”), update `InventoryUpdateRequest.item` and `inventory_db` in `inventory_service/main.py`. Both the Inventory Service and MCP Server must be restarted to reflect changes, as `valid_items` are fetched from `openapi.json` at MCP Server startup. The rule-based system prompt in `mcp_server/main.py` is designed to handle dynamic inventory updates by incorporating `valid_items`, ensuring seamless processing of new items without prompt modifications.
+- **Validation**: The `Literal["tshirts", "pants"]` in `InventoryUpdateRequest` generates an `enum` in `openapi.json`, ensuring only valid items are processed. Business logic prevents negative inventory (400 errors), aligning with Task 1.
+- **Error Handling**: Structured 400 (negative inventory) and 422 (validation) errors provide clear feedback to the MCP Server, enabling user-friendly responses (e.g., “Cannot reduce tshirts below zero”).
+- **Dynamic Item Support**: The `openapi.json` `enum` allows new items (e.g., `"jackets"`) to be added by updating `InventoryUpdateRequest`, supporting scalability without MCP Server code changes.
 
-- **Choice of FastAPI:** FastAPI was chosen for its rapid development capabilities, excellent performance, and automatic generation of OpenAPI documentation. This allowed for quick setup of a clear RESTful API.
+### Limitations
+- In-memory store resets on restart, and negative item counts at initialization are not handled.
+- No authentication, suitable for prototyping.
 
-- **In-Memory Data Store:** An in-memory dictionary (inventory_db) was used as per the task requirements, prioritizing simplicity and focusing on core API logic rather than database complexities.
 
-#### Correctness and Error Handling:
-
-- **Pydantic for Validation:** Pydantic models (InventoryUpdateRequest, InventoryResponse) ensure strict validation of incoming request bodies and outgoing responses, guaranteeing data integrity.
-
-- **Business Logic Validation (400 Bad Request):** The service explicitly raises HTTPException with 400 Bad Request for business rule violations, such as attempting to update a non-existent item (e.g., 'hats') or reducing inventory below zero. This clearly communicates application-specific constraints to clients.
-
-### 2. MCP (Model Control Plane) Server (mcp-server/)
+## 2. MCP (Model Control Plane) Server (mcp-server/)
 
 The MCP Server acts as the intelligent bridge between natural language and the Inventory Service API.
 
-#### Architecture and Modularity:
+### Design Choices
+- **LangChain and LangGraph**: LangChain’s tool-binding enables `gemini-2.0-flash` to process natural language queries, while LangGraph’s stateful workflow handles multi-step tasks (e.g., “clear all pants” requiring `get_inventory_tool` then `update_inventory_tool`), supporting Tasks 1 and 3. The workflow ensures robust tool execution and response formatting. LangGraph allows Human in the Loop configuration and persistence, for stateful conversations, if needed to be implemented in future.
+- **Model: gemini-2.0-flash**: Gemini 2.0 Flash is a good choice for this task due to its high speed and cost-effectiveness, making it ideal for the transactional, quick-response nature of an inventory management agent. Its strong function-calling capabilities ensure accurate translation of natural language to API calls.
+- **LLM-Driven Processing**: The rule-based system prompt (`MCP_SYSTEM_PROMPT` in `main.py`) defines rules for quantity handling (Task 1), item normalization (Task 2), multi-item processing (Task 3), and inventory summarization (Task 4). The LLM interprets errors, reducing coded logic.
+- **InventoryClient**: Uses `requests` in `inventory_client.py` for lightweight HTTP communication with the Inventory Service. The default `base_url` (`http://127.0.0.1:8000`) is for local development, configurable via `INVENTORY_SERVICE_URL` for non-local setups (e.g., Docker, cloud). Structured error responses support LLM interpretation.
+- **MCP Tools**: Two LangChain tools (`get_inventory_tool`, `update_inventory_tool`) in `mcp_tools.py` map to Inventory Service endpoints, minimizing complexity. `update_inventory_tool` uses a Pydantic schema to ensure valid inputs, mirroring the Inventory Service’s `InventoryUpdateRequest`. Logging aids debugging.
+        * **Controlled Tool Execution (Private Node Methods):** The LangGraph nodes responsible for direct LLM interaction (`_call_llm_node`) and tool execution (`_call_tool_node`) are implemented as *private methods* within the `LLMAgent` class (indicated by the leading underscore `_`). This design choice ensures that:
+        * **Tools are never called directly:** External code (like the FastAPI endpoint) cannot bypass the agent's reasoning process and directly invoke `_call_tool_node`.
+        * **Controlled Flow:** All tool calls are strictly orchestrated by the LangGraph workflow, meaning an API endpoint is only triggered *after* the LLM has reasoned, decided on a tool, and the graph has routed the execution. This prevents accidental or unauthorized direct API calls from the MCP server's public interface, enhancing security and ensuring the LLM's intelligence is always in the loop.
+- **LLMAgent**: Integrates the LLM, tools, and system prompt in `main.py` to process queries. Fetches `valid_items` from `openapi.json` at initialization for dynamic item support (Task 2). The LangGraph workflow handles tool calls and responses, ensuring stateful query processing (e.g., for “clear all pants”).
+- **FastAPI**: Provides a RESTful `/process_query` endpoint in `main.py` for natural language queries, with Pydantic for input validation. Handles errors gracefully, supporting robust user interactions.
+- **OpenAPI Integration**: Fetches `valid_items` from `openapi.json` at startup, ensuring new items (e.g., `"jackets"`) are supported without code changes. The rule-based prompt dynamically incorporates `valid_items`, enabling effective inventory updates.
+- **Error Handling**: Passes 400/422 errors to the LLM for user-friendly responses (e.g., “Pantis is not supported”). Network errors (503) inform users to check the Inventory Service. FastAPI handles endpoint errors (400/500) for robustness.
 
-- **Separate Server:** As required, the MCP runs as a distinct FastAPI server (http://127.0.0.1:8001), demonstrating a decoupled microservices architecture.
+### Features
+- **Compound Queries**: The system supports complex queries (e.g., “add 5 tshirts and 10 pants”, “sell 3 tshirts and 2 hats”) by processing multiple items via separate `update_inventory_tool` calls, combining results and errors (Task 3). The LangGraph workflow in `main.py` ensures sequential tool execution for multi-step queries (e.g., “clear all pants”).
+- **Rule-Based Prompt**: The `MCP_SYSTEM_PROMPT` in `main.py` enforces strict rules for quantity handling (e.g., integers only), item normalization (e.g., “T-shirt” → “tshirts”), multi-item processing, and response formatting. This ensures all actions align with the system’s requirements, providing consistent and accurate responses across all four tasks.
+- **Dynamic Item Verification**: The `LLMAgent` in `main.py` **dynamically parses `openapi.json`** at startup to fetch `valid_items`, enabling validation of item names (Task 2). This supports new items (e.g., “jackets”) without modifying the MCP Server code, as the prompt adapts to the updated `valid_items`.
 
-- **OOP (LLMAgent Class):** The core agent logic is encapsulated within an LLMAgent class. This adheres to Object-Oriented Programming (OOP) principles, promoting code readability, maintainability, and reusability. Dependencies like the LLM model, tools, and system prompt are injected into the LLMAgent's constructor, demonstrating a clean separation of concerns.
+### Limitations
+- **In-Memory Store**: Resets on restart and assumes non-negative initial counts, as noted in the Inventory Service section.
+- **MCP Server**: Relies on the LLM for query parsing and response formatting, which may introduce variability for edge cases. The `openapi.json` is fetched only at MCP Server startup in `LLMAgent._get_valid_inventory_items`. If the Inventory Service’s schema changes (e.g., new items added), both servers must be restarted to update `valid_items`. This is because the `valid_items` list is cached at initialization to avoid repeated HTTP requests during runtime, ensuring performance but requiring manual restarts for schema updates.
+- **InventoryClient**: Minimal validation in `inventory_client.py` shifts responsibility to the Inventory Service and MCP Server, ensuring simplicity but relying on their correctness.
+- **MCP Tools**: Limited to two tools in `mcp_tools.py` to cover all operations, relying on the LLM for complex query parsing (e.g., multi-item updates).
+- **LLMAgent**: Depends on `GOOGLE_API_KEY` for LLM initialization. Zero temperature ensures deterministic responses but may limit creativity for edge cases.
 
-- **Dedicated Client (inventory_client.py):** A separate InventoryClient class handles all HTTP communication with the Inventory Service. This centralizes API interaction logic and error handling.
+## Alignment with Tasks
+The system addresses four key tasks:
+1. **Quantity Processing**: The `MCP_SYSTEM_PROMPT` enforces exact integer quantities, with `update_inventory_tool` handling positive/negative changes. `get_inventory_tool` supports “clear all” queries by fetching counts for negative changes (Task 1).
+2. **Item Normalization**: The `LLMAgent` fetches `valid_items` from `openapi.json`, and the system prompt defines normalization rules (e.g., `"tshirt"` → `"tshirts"`, `"pantis"` → `"pantis"`). Invalid items trigger error messages (Task 2).
+3. **Multi-Item Handling**: The system prompt and LangGraph workflow support multiple `update_inventory_tool` calls for valid items, with combined error messages for invalid items (Task 3).
+4. **Inventory Summarization**: `get_inventory_tool` fetches current counts, and `update_inventory_tool` returns updated counts for HTTP 200 responses, formatted by the LLM (Task 4).
 
-- **Dedicated Tools (mcp_tools.py):** LangChain Tool definitions are separated into their own module, clearly defining the actions the agent can perform.
-
-#### GenAI Integration and Prompt Design (The "Brain" of the Agent):
-
-- **LLM Choice (Gemini-Flash):** gemini-1.5-flash-latest was selected for its balance of performance, cost-effectiveness, and strong function-calling capabilities via Google's Generative AI API, integrated seamlessly with LangChain.
-
-- **LangGraph for Agent Orchestration (ReAct Pattern):** LangGraph was utilized to build a robust, stateful agent workflow. The agent follows a ReAct (Reasoning and Acting) pattern:
-
-  - **_call_llm_node (Reason):** The LLM processes the conversation history and decides on the next Action (tool call) or Response (final answer).
-
-  - **_exists_action (Route):** A concise router function determines if the LLM's output contains tool calls, routing to _call_tool_node if true, or ending the conversation if false.
-
-  - **_call_tool_node (Act):** Executes the tool(s) identified by the LLM via the InventoryClient.
-
-  - **Loop Back to LLM:** After tool execution, the flow always returns to _call_llm_node, allowing the LLM to "Observe" the tool's result and Reason on it to formulate a final user-friendly Response.
-
-#### Advanced Prompt Engineering (Core of Intelligence):
-
-The MCP_SYSTEM_PROMPT is meticulously crafted using several advanced prompt engineering techniques:
-
-- **Clear ReAct Instructions:** Explicitly guides the LLM to follow the "Thought, Action, Observation" loop.
-
-- **Detailed Rules:** Provides precise, imperative rules for inventory operations, including quantity sign interpretation (e.g., "bought -5" means sell 5), item name strictness, and handling implicit/relative quantities.
-
-- **Few-Shot Examples:** Crucially, detailed examples are included for various scenarios (successful GET/POST, multi-step calculations like "sell half", and error handling). These examples teach the LLM the desired behavior more effectively than abstract rules alone, significantly boosting consistency and accuracy.
-
-- **Summarization Instruction:** Explicitly instructs the LLM to provide a concise, user-friendly summary after each tool execution or error, ensuring clear user feedback.
-
-#### OpenAPI Specification Usage (Adherence to API Contract):
-
-The MCP Server "uses" the OpenAPI spec from the Inventory Service by adhering to its contract. While not dynamically parsing the openapi.yaml at runtime, the LangChain Tool definitions (mcp_tools.py) were meticulously designed based on the precise endpoint paths, HTTP methods, request body schemas (e.g., item and change for POST /inventory), and response structures documented in the Inventory Service's OpenAPI specification. This ensures full compatibility and respect for the defined API contract.
-
-#### Robust Layered Error Handling:
-
-- **Client-Side Error Translation (inventory_client.py):** This client intercepts 4xx and 5xx HTTP responses from the Inventory Service. It translates generic API errors (e.g., raw 400 messages) into a structured format ({"error": {"translated_message": ...}}) for the LLM to consume. This centralizes error interpretation for the agent.
-
-- **LLM Error Summarization:** The agent's prompt instructs the LLM to interpret these translated error messages and synthesize a human-friendly explanation for the end-user (e.g., "I cannot sell 1000 tshirts. There are only X in stock."). This ensures the user never sees raw API error codes.
-
-### 3. What Makes This Solution Stand Out
-
-- **Comprehensive Problem Solving:** Addresses all task requirements, including implicit quantitative queries and complex error flows.
-
-- **Architectural Clarity:** Clean separation of concerns between services, OOP structure, and clear data flow.
-
-- **Advanced GenAI Craftsmanship:** Demonstrates expertise in LangChain, LangGraph, ReAct prompting, and iterative prompt engineering for achieving highly consistent and intelligent agent behavior in complex scenarios.
-
-- **Robustness:** Thoughtful error handling at multiple layers, from backend validation to LLM interpretation, ensuring a reliable user experience.
-
-- **Attention to Detail:** From requirements.txt management to explicit OpenAPI contract adherence, the solution showcases best practices.
-
-## ⚠️ Known Limitations
-
-- **In-Memory Data Store:** The inventory data resets every time the inventory-service is restarted. For persistent storage, a database (e.g., SQLite, PostgreSQL) would be required.
-
-- **Fixed Inventory Items:** Only 'tshirts' and 'pants' are supported. Extending to more items would require modifications in both services.
-
-- **Single-Turn Conversation:** The MCP server currently processes each natural language query independently without maintaining long-term conversational memory across requests. For multi-turn dialogue, LangGraph's checkpointer or external session management would be needed.
-
-- **No Authentication:** Neither service has user authentication or authorization implemented.
-
-- **No Advanced Tooling:** The project focuses on core LLM agent capabilities; it does not include advanced features like RAG (Retrieval Augmented Generation) or custom fine-tuning of the LLM.
+## Future Considerations
+- **Percentage Changes**: The current system rejects relative quantities (e.g., “sell half of pants”) per the rule-based prompt. To handle percentage changes (e.g., “reduce tshirts by 50%”), a new tool could be added to `mcp_tools.py` (e.g., `update_inventory_by_percentage`) that uses `get_inventory_tool` to fetch the current count, calculates the percentage change, and calls `update_inventory_tool` with the exact integer. For example, “reduce tshirts by 50%” (current: 20 tshirts) would calculate `change=-10` and invoke `update_inventory_tool(item="tshirts", change=-10)`. This ensures accuracy and aligns with Task 1’s requirement for exact quantities.
+- **Human-in-the-Loop Chatbot**: The current system implements a single-turn chatbot due to the in-memory datastore’s volatility (resets on restart). With a persistent database (e.g., PostgreSQL), a multi-turn chatbot could be implemented by storing conversation history and inventory state. A human-in-the-loop mechanism could allow users to confirm actions (e.g., “Confirm adding 5 jackets?”) or correct errors, enhancing interaction. This would leverage LangGraph’s stateful workflow in `main.py` to maintain context across turns, enabling lively and persistent interactions.
