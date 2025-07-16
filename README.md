@@ -137,7 +137,7 @@ GOOGLE_API_KEY="YOUR_GEMINI_API_KEY_HERE"
    ```
 **Note**: The default `INVENTORY_SERVICE_URL` (`http://127.0.0.1:8000`) is for local development. For non-local setups (e.g., Docker, cloud), set `INVENTORY_SERVICE_URL` to the Inventory Service’s host and port (e.g., `http://inventory-service:8000`). Verify the port is not in use by another service. Ensure `GOOGLE_API_KEY` is set for the LLM.
 
-# Ensure your virtual environment is active and .env file is set up
+#### Ensure your virtual environment is active and .env file is set up
 uvicorn main:app --reload --port 8001
 The MCP Server will now be running at http://127.0.0.1:8001 OR INVENTORY_SERVICE_URL. You can access its interactive API documentation (Swagger UI) at http://YOUR_URL/docs.
 
@@ -179,16 +179,20 @@ This service manages inventory for 'tshirts' (initial: 20) and 'pants' (initial:
 
 
 
-### Inventory Web Service (http://127.0.0.1:8000)
+## MCP Server (http://127.0.0.1:8001)
 
 This service converts natural language queries into API calls to the Inventory Service.
+
+
+
+**Request Body Sample Test Cases:** `{"query": "I sold 3 t shirts"}`
 
 #### 1. POST /process_query
 
 Accepts a natural language string and returns a GenAI-generated response.
 
 **Request Body Sample Test Cases:** `{"query": "I sold 3 t shirts"}`
-```
+
 - Test query endpoint:
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add one tshirt"}'
@@ -259,7 +263,7 @@ Accepts a natural language string and returns a GenAI-generated response.
      ```
      Response (if `openapi.json` includes `"jackets"`): `{"response":"Added 5 jackets. Inventory: 5 jackets, 20 tshirts, 15 pants."}`
      Response (if `"jackets"` not in `openapi.json`): `{"response":"Jackets is not supported. Valid items: ['tshirts', 'pants']."}`
-```
+
 ## 🧠 Design and Approach
 
 This solution focuses on building a clear, modular, and robust system that effectively integrates traditional backend services with GenAI capabilities.
