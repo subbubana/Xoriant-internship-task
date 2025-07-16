@@ -156,25 +156,25 @@ This service manages inventory for 'tshirts' (initial: 20) and 'pants' (initial:
      curl -X GET "http://127.0.0.1:8000/inventory"
      ```
      Response: `{"tshirts": 20, "pants": 15}`
-   - **Update Inventory (Success)**:
+- **Update Inventory (Success)**:
      ```bash
      curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" \
      -d '{"item": "tshirts", "change": 5}'
      ```
      Response: `{"tshirts": 25, "pants": 15}`
-   - **Negative Inventory (400)**:
+- **Negative Inventory (400)**:
      ```bash
      curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" \
      -d '{"item": "tshirts", "change": -21}'
      ```
      Response: `{"detail": "Cannot reduce tshirts count below zero. Current: 20, Attempted change: -21"}`
-   - **Invalid Item (422)**:
+- **Invalid Item (422)**:
      ```bash
      curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" \
       -d '{"item": "pantis", "change": 5}'
      ```
      Response: `{"detail": [{"loc": ["body", "item"], "msg": "value is not a valid enumeration member; permitted: 'tshirts', 'pants'", "type": "value_error.enum"}]}`
-   - **Large Quantity (if limits enabled)**:
+- **Large Quantity (if limits enabled)**:
      ```bash
      curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" \
      -d '{"item": "tshirts", "change": 10001}'
