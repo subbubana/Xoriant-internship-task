@@ -176,10 +176,10 @@ This service manages inventory for 'tshirts' (initial: 20) and 'pants' (initial:
      curl -X POST "http://127.0.0.1:8000/inventory" -H "Content-Type: application/json" -d '{"item": "tshirts", "change": 10001}'
      ```
      Response (if limits enabled): `{"detail": [{"loc": ["body", "change"], "msg": "value must be less than or equal to 10000", "type": "value_error.number.too_large"}]}`
-```
 
 
-### MCP Server (http://127.0.0.1:8001)
+
+### Inventory Web Service (http://127.0.0.1:8000)
 
 This service converts natural language queries into API calls to the Inventory Service.
 
@@ -198,50 +198,62 @@ Accepts a natural language string and returns a GenAI-generated response.
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell 5 T-shirt"}'
      ```
      Response: `{"response":"Sold 5 tshirts. Inventory: 15 tshirts, 15 pants."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"clear all pants"}'
      ```
      Response (assuming 15 pants): `{"response":"Cleared all pants. Inventory: 20 tshirts, 0 pants."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell 2.5 tshirts"}'
      ```
      Response: `{"response":"Only whole numbers are supported. Please specify an exact number."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell half of pants"}'
      ```
      Response: `{"response":"Please provide an exact number for updates."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 20 shirts"}'
      ```
      Response: `{"response":"Shirts is not supported. Valid items: ['tshirts', 'pants']."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 5 pantis"}'
      ```
      Response: `{"response":"Pantis is not supported. Valid items: ['tshirts', 'pants']."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell 3 tshit"}'
      ```
      Response: `{"response":"Tshits is not supported. Valid items: ['tshirts', 'pants']."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 20 pantis and 30 shirts"}'
      ```
      Response: `{"response":"Pantis and shirts are not supported. Valid items: ['tshirts', 'pants']."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 5 tshirts and 10 pantis"}'
      ```
      Response: `{"response":"Added 5 tshirts. Pantis is not supported. Inventory: 25 tshirts, 15 pants. Valid items: ['tshirts', 'pants']."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"sell 3 tshirts and 2 hats"}'
      ```
      Response: `{"response":"Sold 3 tshirts. Hats is not supported. Inventory: 17 tshirts, 15 pants. Valid items: ['tshirts', 'pants']."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 5"}'
      ```
      Response: `{"response":"Please specify which item(s) to update."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"buy 20000000 tshirts"}'
      ```
      Response: `{"response":"The update failed because the requested change (20000000) exceeds the maximum allowed value of 10000. Please specify a smaller amount."}`
+
      ```bash
      curl -X POST "http://localhost:8001/process_query" -H "accept: application/json" -H "Content-Type: application/json" -d '{"query":"add 5 jackets"}'
      ```
