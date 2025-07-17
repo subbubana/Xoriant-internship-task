@@ -129,7 +129,7 @@ class LLMAgent:
             List[str]: List of valid item names (e.g., ["tshirts", "pants"]) or default ["tshirts", "pants"] if fetch fails.
         """
         try:
-            response = requests.get(f"{url}/openapi.json")
+            response = requests.get(f"{url}/openapi.json") #accessing live openapi.json to get the valid items.
             response.raise_for_status()
             openapi_spec = response.json()
             inventory_item_schema = openapi_spec.get("components", {}).get("schemas", {}).get("InventoryItem", {})

@@ -12,7 +12,9 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Define the enum for the item names("tshirts" and "pants"). This can be extended to include more items in the future.
+# Define the enum for the item names("tshirts" and "pants") sticking to the task requirements. 
+# This can be extended to include more items in the future.
+# Adding an item here will automatically update the MCP Server's valid_items list.
 class InventoryItem(str, Enum): # Inherit from str to ensure string values in JSON
     TSHIRTS = "tshirts"
     PANTS = "pants"
@@ -101,7 +103,10 @@ async def update_inventory(request: InventoryUpdateRequest):
     # Calculate new inventory count based on the requested change.
     # This supports positive (add/buy) and negative (sell/remove) updates as per Task 1.
     # This also handled new items added to the enum in the future.
-    new_count = inventory_db.get(request.item.value, 0) + request.change
+    # When the item supported by enum is not in the inventory, it returns 0.
+    item_key = request.item.value # Get the string value of the enum member
+    current_count = inventory_db.get(item_key, 0)
+    new_count = current_count + request.change
     
     # Check for negative inventory to enforce business rules.
     # A 400 error is raised with a descriptive message, which the MCP Server uses
@@ -109,12 +114,10 @@ async def update_inventory(request: InventoryUpdateRequest):
     if new_count < 0:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot reduce {request.item} count below zero. \
-                  Current: {inventory_db.get(request.item.value, 0)}, Attempted change: {request.change}"
+            detail=f"Cannot reduce {item_key} count below zero. Current: {current_count}, Attempted change: {request.change}"
         )
     
     # Update the inventory count in the in-memory database.
     # This ensures the MCP Server receives the updated state for Task 4 (inventory summarization).
-    inventory_db[request.item] = new_count
-    print(inventory_db)
+    inventory_db[item_key] = new_count
     return inventory_db
