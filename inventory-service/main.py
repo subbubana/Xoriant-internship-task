@@ -110,7 +110,7 @@ async def update_inventory(request: InventoryUpdateRequest):
         raise HTTPException(
             status_code=400,
             detail=f"Cannot reduce {request.item} count below zero. \
-                  Current: {inventory_db[request.item]}, Attempted change: {request.change}"
+                  Current: {inventory_db.get(request.item.value, 0)}, Attempted change: {request.change}"
         )
     
     # Update the inventory count in the in-memory database.
