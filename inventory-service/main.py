@@ -12,7 +12,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Define the enum for the item names. This can be extended to include more items in the future.
+# Define the enum for the item names("tshirts" and "pants"). This can be extended to include more items in the future.
 class InventoryItem(str, Enum): # Inherit from str to ensure string values in JSON
     TSHIRTS = "tshirts"
     PANTS = "pants"
@@ -25,18 +25,19 @@ inventory_db: Dict[str, int] = {
     "pants": 15
 }
 
-# Pydantic model for GET /inventory response
-class InventoryResponse(BaseModel):
-    tshirts: int
-    pants: int
+# Pydantic model for GET /inventory response -- Not using this static model, to achieve a sacleable solution.
+# class InventoryResponse(BaseModel):
+#     tshirts: int
+#     pants: int
 
 # Pydantic model for POST /inventory request with strict validation
 class InventoryUpdateRequest(BaseModel):
-    # Use the Enum directly for type validation
+    # Use the Enum directly for type validation -- supports only the items in the enum.
     item: InventoryItem = Field(description="The name of the item ('tshirts' or 'pants').")
     change: int = Field(
         description="The quantity to add (positive) or remove (negative).",
-        # ge=-10000, le=10000  # Commented out to avoid hardcoding limits, allowing flexibility for future changes.
+        # ge=-10000, le=10000  # Commented out to avoid hardcoding limits, 
+        # allowing flexibility for future changes.
     )
 
     # No case normalization validator needed here, as Enum members are exact.
@@ -63,22 +64,21 @@ class HTTPValidationError(BaseModel):
         description="List of validation errors"
     )
 
-
-@app.get("/inventory", response_model=InventoryResponse)
+@app.get("/inventory", response_model=Dict[str, int]) # Using generic response_model to support future items.
 async def get_inventory():
-    # Returns the current inventory counts for all items in inventory_db.
-    # The endpoint supports Task 4 in mcp-server/main.py (inventory summarization) by providing current counts
-    # to the MCP Server, which uses get_inventory_tool for queries like "clear all pants"
-    # or to summarize inventory after successful updates.
-    # The response_model ensures the response matches the InventoryResponse schema.
-    """Returns the current inventory count for all the items in inventory."""
+     # Returns the current inventory counts for all items in inventory_db.
+     # The endpoint supports Task 4 in mcp-server/main.py (inventory summarization) by providing current counts
+     # to the MCP Server, which uses get_inventory_tool for queries like "clear all pants"
+     # or to summarize inventory after successful updates.
+     # The response_model ensures the response matches the InventoryResponse schema.
+    """Returns the current inventory count for all items."""
     return inventory_db
 
 @app.post(
     "/inventory",
-    response_model=InventoryResponse,
+    response_model=Dict[str, int],
     responses={
-        status.HTTP_200_OK: {"description": "Successful Response", "model": InventoryResponse},
+        status.HTTP_200_OK: {"description": "Successful Response", "model": Dict[str, int]},
         status.HTTP_400_BAD_REQUEST: {
             "model": HTTPErrorResponse,
             "description": "Bad Request: Attempt to reduce inventory below zero."
@@ -100,7 +100,8 @@ async def update_inventory(request: InventoryUpdateRequest):
     """
     # Calculate new inventory count based on the requested change.
     # This supports positive (add/buy) and negative (sell/remove) updates as per Task 1.
-    new_count = inventory_db[request.item] + request.change
+    # This also handled new items added to the enum in the future.
+    new_count = inventory_db.get(request.item.value, 0) + request.change
     
     # Check for negative inventory to enforce business rules.
     # A 400 error is raised with a descriptive message, which the MCP Server uses
@@ -115,4 +116,5 @@ async def update_inventory(request: InventoryUpdateRequest):
     # Update the inventory count in the in-memory database.
     # This ensures the MCP Server receives the updated state for Task 4 (inventory summarization).
     inventory_db[request.item] = new_count
+    print(inventory_db)
     return inventory_db
